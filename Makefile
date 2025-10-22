@@ -19,4 +19,4 @@ down:
 	docker compose down
 
 dev:
-  	npm run dev
+	npm run dev
