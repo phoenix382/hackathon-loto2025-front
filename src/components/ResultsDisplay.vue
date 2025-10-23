@@ -46,7 +46,6 @@
 
 <script setup lang="ts">
 import type { DrawResult, BitsResult } from '@/types/draw'
-import { defineProps, defineEmits } from 'vue'
 
 interface Props {
   result: DrawResult | null
@@ -59,7 +58,7 @@ interface Emits {
   (e: 'newDraw'): void
 }
 
-defineProps<Props>()
+const props = defineProps<Props>()
 defineEmits<Emits>()
 
 const formatTimestamp = (timestamp: number): string => {
@@ -67,8 +66,7 @@ const formatTimestamp = (timestamp: number): string => {
 }
 
 const saveBitsAsTxt = () => {
-  const props = defineProps<Props>()
-
+  // Use the props variable that's already defined above
   if (!props.bits) {
     console.warn('No bits data available to save')
     return
