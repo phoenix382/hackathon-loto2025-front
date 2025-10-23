@@ -20,11 +20,13 @@ export interface DrawResult {
 }
 
 export interface StreamEvent {
-  detail: Array<{
-    loc: (string | number)[]
-    msg: string
-    type: string
-  }>
+  /**
+   * SSE or WS event name (e.g., 'entropy', 'whitening', 'seed', 'draw', 'tests', 'final').
+   * For default SSE messages without named event, will be 'message'.
+   */
+  event: string
+  /** Parsed payload of the event (JSON). */
+  data: Record<string, any>
 }
 
 export interface BitsResult {
@@ -41,4 +43,16 @@ export interface DrawState {
   error: string | null
   showBits: boolean
   bits: BitsResult | null
+}
+
+export interface DrawLive {
+  draw?: number[]
+  fingerprint?: string
+  tests_summary?: {
+    eligible: number
+    total: number
+    passed: number
+    ratio: number
+  } | null
+  status?: string
 }

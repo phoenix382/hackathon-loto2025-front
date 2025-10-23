@@ -11,12 +11,12 @@
       </div>
 
       <div class="result-info">
-        <div class="info-item"><strong>ID процесса:</strong> {{ result.job_id }}</div>
+        <div class="info-item"><strong>ID задания:</strong> {{ result.job_id }}</div>
         <div class="info-item">
-          <strong>Время начала:</strong> {{ formatTimestamp(result.started_at) }}
+          <strong>Начало:</strong> {{ formatTimestamp(result.started_at) }}
         </div>
         <div v-if="result.finished_at" class="info-item">
-          <strong>Время завершения:</strong> {{ formatTimestamp(result.finished_at) }}
+          <strong>Окончание:</strong> {{ formatTimestamp(result.finished_at) }}
         </div>
         <div class="info-item">
           <strong>Отпечаток:</strong>
@@ -31,7 +31,7 @@
     </div>
 
     <div v-if="bits && showBits" class="bits-section">
-      <h3>Использованные биты</h3>
+      <h3>Промежуточные биты</h3>
       <div class="bits-info">
         <div><strong>Длина:</strong> {{ bits.length }} бит</div>
         <div><strong>Биты:</strong></div>
@@ -64,9 +64,7 @@ const formatTimestamp = (timestamp: number): string => {
 </script>
 
 <style scoped>
-.results-display {
-  margin: 2rem 0;
-}
+.results-display { margin: 2rem 0; }
 
 .numbers-grid {
   display: flex;
@@ -97,9 +95,7 @@ const formatTimestamp = (timestamp: number): string => {
   margin: 1.5rem 0;
 }
 
-.info-item {
-  margin-bottom: 0.5rem;
-}
+.info-item { margin-bottom: 0.5rem; }
 
 .fingerprint {
   font-family: monospace;
@@ -126,31 +122,13 @@ const formatTimestamp = (timestamp: number): string => {
   transition: background-color 0.2s;
 }
 
-.action-button {
-  background-color: #007bff;
-  color: white;
-}
+.action-button { background-color: #007bff; color: white; }
+.action-button.secondary { background-color: #6c757d; color: white; }
+.action-button:hover { opacity: 0.9; }
 
-.action-button.secondary {
-  background-color: #6c757d;
-  color: white;
-}
+.bits-section { margin-top: 2rem; padding-top: 2rem; border-top: 1px solid #ddd; }
 
-.action-button:hover {
-  opacity: 0.9;
-}
-
-.bits-section {
-  margin-top: 2rem;
-  padding-top: 2rem;
-  border-top: 1px solid #ddd;
-}
-
-.bits-info {
-  background-color: #f8f9fa;
-  padding: 1rem;
-  border-radius: 4px;
-}
+.bits-info { background-color: #f8f9fa; padding: 1rem; border-radius: 4px; }
 
 .bits-display {
   display: block;
@@ -165,3 +143,4 @@ const formatTimestamp = (timestamp: number): string => {
   overflow-y: auto;
 }
 </style>
+

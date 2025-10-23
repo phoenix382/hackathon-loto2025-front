@@ -1,7 +1,7 @@
 <!-- components/ProgressDisplay.vue -->
 <template>
   <div class="progress-display">
-    <h3>Статус генерации: {{ statusText }}</h3>
+    <h3>Прогресс процесса: {{ statusText }}</h3>
 
     <div class="progress-bar">
       <div class="progress-fill" :style="{ width: progress + '%' }"></div>
@@ -19,9 +19,10 @@
     </div>
 
     <div v-if="currentStageMessage" class="current-stage">
-      Текущий этап: {{ currentStageMessage }}
+      Текущее действие: {{ currentStageMessage }}
     </div>
   </div>
+  
 </template>
 
 <script setup lang="ts">
@@ -38,19 +39,19 @@ const props = defineProps<Props>()
 
 const stageNames: Record<string, string> = {
   entropy: 'Сбор энтропии',
-  whitening: 'Выравнивание',
-  seed: 'Генерация сида',
-  draw: 'Генерация чисел',
+  whitening: 'Нормализация (whitening)',
+  seed: 'Формирование seed',
+  draw: 'Розыгрыш',
   tests: 'Проверка тестами',
   final: 'Завершение',
 }
 
 const statusText = computed(() => {
   const statusMap: Record<string, string> = {
-    pending: 'Ожидание',
-    running: 'Выполняется',
-    completed: 'Завершено',
-    failed: 'Ошибка',
+    pending: 'ожидает',
+    running: 'выполняется',
+    completed: 'завершён',
+    failed: 'ошибка',
   }
   return statusMap[props.status] || props.status
 })
@@ -58,8 +59,8 @@ const statusText = computed(() => {
 const progress = computed(() => {
   const stageWeights: Record<string, number> = {
     entropy: 10,
-    whitening: 20,
-    seed: 40,
+    whitening: 25,
+    seed: 45,
     draw: 70,
     tests: 90,
     final: 100,
@@ -72,7 +73,9 @@ const progress = computed(() => {
 const currentStageMessage = computed(() => {
   if (props.streamEvents.length === 0) return ''
   const lastEvent = props.streamEvents[props.streamEvents.length - 1]!
-  return lastEvent.detail[0]?.msg || ''
+  const d = (lastEvent as any).data || {}
+  if (typeof d === 'string') return d
+  return d.message || d.msg || d.note || ''
 })
 
 const isStageActive = (stage: string) => {
@@ -133,3 +136,4 @@ const getStageName = (stage: string) => {
   border-left: 4px solid #007bff;
 }
 </style>
+

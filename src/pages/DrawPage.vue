@@ -2,13 +2,13 @@
 <template>
   <div class="draw-page">
     <header class="page-header">
-      <h1>Генератор лотерейных чисел</h1>
-      <p>Генерация случайных чисел с использованием криптографически безопасного ГСЧ</p>
+      <h1>Розыгрыш случайных чисел</h1>
+      <p>Генерируем числа из нескольких независимых источников. Всё прозрачно: этапы, seed, биты и тесты.</p>
     </header>
 
-    <div v-if="error" class="error-message">
-      {{ error }}
-      <button @click="clearError" class="close-error">×</button>
+    <div v-if="state.error" class="error-message">
+      {{ state.error }}
+      <button @click="clearError" class="close-error" aria-label="Закрыть">×</button>
     </div>
 
     <DrawForm v-if="!state.jobId && !state.result" @submit="startDraw" class="form-section" />
@@ -20,8 +20,15 @@
         :status="state.result?.status || 'running'"
       />
 
+      <LiveDrawInfo
+        v-if="!state.result"
+        :numbers="live.draw"
+        :fingerprint="live.fingerprint"
+        :tests-summary="live.tests_summary || undefined"
+      />
+
       <button v-if="state.result?.status === 'running'" @click="cancelDraw" class="cancel-button">
-        Отменить генерацию
+        Остановить
       </button>
     </div>
 
@@ -34,6 +41,7 @@
       @new-draw="resetState"
     />
   </div>
+  
 </template>
 
 <script setup lang="ts">
@@ -41,13 +49,16 @@ import { reactive, ref, onUnmounted } from 'vue'
 import DrawForm from '@/components/DrawForm.vue'
 import ProgressDisplay from '@/components/ProgressDisplay.vue'
 import ResultsDisplay from '@/components/ResultsDisplay.vue'
-import type { DrawConfig, DrawState, DrawResult, StreamEvent, BitsResult } from '@/types/draw'
+import type { DrawConfig, DrawState, DrawResult, StreamEvent, BitsResult, DrawLive } from '@/types/draw'
+import { buildWsUrl } from '@/utils/net'
+import LiveDrawInfo from '@/components/LiveDrawInfo.vue'
 
 defineOptions({
   components: {
     DrawForm,
     ProgressDisplay,
     ResultsDisplay,
+    LiveDrawInfo,
   },
 })
 
@@ -62,8 +73,9 @@ const state = reactive<DrawState>({
 })
 
 const streamEvents = ref<StreamEvent[]>([])
-let eventSource: EventSource | null = null
-let pollInterval: number | null = null
+let ws: WebSocket | null = null
+let finalCheck: number | null = null
+const live = reactive<DrawLive>({ tests_summary: null })
 
 const startDraw = async (config: DrawConfig) => {
   try {
@@ -79,52 +91,83 @@ const startDraw = async (config: DrawConfig) => {
     })
 
     if (!response.ok) {
-      throw new Error(`Ошибка сервера: ${response.status}`)
+      throw new Error(`Ошибка запуска розыгрыша: ${response.status}`)
     }
 
     const data = await response.json()
     state.jobId = data.job_id
 
-    // Запускаем отслеживание прогресса
     startProgressTracking(data.job_id)
   } catch (err) {
-    state.error = err instanceof Error ? err.message : 'Произошла неизвестная ошибка'
+    state.error = err instanceof Error ? err.message : 'Не удалось запустить розыгрыш'
   } finally {
     state.isLoading = false
   }
 }
 
+const knownStages = ['entropy', 'whitening', 'seed', 'draw', 'tests', 'final'] as const
+
 const startProgressTracking = (jobId: string) => {
-  // SSE для получения событий в реальном времени
-  eventSource = new EventSource(`/api/draw/stream/${jobId}`)
-
-  eventSource.onmessage = (event) => {
-    const streamEvent: StreamEvent = JSON.parse(event.data)
-    streamEvents.value.push(streamEvent)
-
-    // Обновляем этапы на основе событий
-    updateStagesFromEvents(streamEvent)
+  const url = buildWsUrl(`/draw/ws/${jobId}`)
+  ws = new WebSocket(url)
+  ws.onmessage = (ev) => {
+    try {
+      const msg = JSON.parse(ev.data)
+      if (msg && msg.event) {
+        const e: StreamEvent = { event: msg.event, data: msg.data }
+        streamEvents.value.push(e)
+        updateStagesFromEvent(e)
+        updateLiveFromEvent(e)
+        if (msg.event === 'final') {
+          // fetch final result once (retry until ready)
+          if (!finalCheck) finalCheck = window.setInterval(() => fetchResult(jobId), 1500)
+        }
+      }
+    } catch {
+      // ignore non-JSON ws messages
+    }
   }
-
-  eventSource.onerror = (error) => {
-    console.error('SSE error:', error)
+  ws.onerror = () => {
+    // optional: surface to UI via state.error
   }
-
-  // Опрос для получения результатов
-  pollInterval = window.setInterval(() => {
-    fetchResult(jobId)
-  }, 2000)
 }
 
-const updateStagesFromEvents = (event: StreamEvent) => {
-  const stageTypes = ['entropy', 'whitening', 'seed', 'draw', 'tests', 'final']
+const updateStagesFromEvent = (event: StreamEvent) => {
+  // infer stage name from event name: 'entropy', 'whitening', etc.,
+  // and also from colon-prefixed names like 'entropy:start'
+  const name = event.event
+  const stage = (name.split(':')[0] || '') as string
+  if (knownStages.includes(stage as any) && !state.stages.includes(stage as string)) {
+    state.stages.push(stage as string)
+  }
+}
 
-  event.detail.forEach((detail) => {
-    const stage = detail.loc[0] as string
-    if (stageTypes.includes(stage) && !state.stages.includes(stage)) {
-      state.stages.push(stage)
+const updateLiveFromEvent = (event: StreamEvent) => {
+  const d: any = event.data || {}
+  // Numbers appear on 'draw' stage
+  if (event.event.startsWith('draw')) {
+    const nums: unknown = d.draw ?? d.numbers
+    if (Array.isArray(nums) && nums.every((x) => Number.isFinite(x))) {
+      live.draw = nums as number[]
     }
-  })
+    if (typeof d.fingerprint === 'string') {
+      live.fingerprint = d.fingerprint
+    }
+  }
+  // Fingerprint sometimes comes with seed stage
+  if (event.event.startsWith('seed') && typeof d.fingerprint === 'string') {
+    live.fingerprint = d.fingerprint
+  }
+  // Tests summary (partial)
+  if (event.event.startsWith('tests')) {
+    const s = (d && (d.summary || (d.tests && d.tests.summary))) || null
+    if (s && typeof s === 'object') {
+      const { eligible, total, passed, ratio } = s as any
+      if ([eligible, total, passed, ratio].every((v) => v !== undefined)) {
+        live.tests_summary = { eligible, total, passed, ratio }
+      }
+    }
+  }
 }
 
 const fetchResult = async (jobId: string) => {
@@ -138,7 +181,6 @@ const fetchResult = async (jobId: string) => {
     const result: DrawResult = await response.json()
     state.result = result
 
-    // Если процесс завершен, останавливаем отслеживание
     if (result.status === 'completed' || result.status === 'failed') {
       stopProgressTracking()
     }
@@ -157,10 +199,10 @@ const loadBits = async () => {
       throw new Error(`Ошибка получения битов: ${response.status}`)
     }
 
-    state.bits = await response.json()
+    state.bits = (await response.json()) as BitsResult
     state.showBits = true
   } catch (err) {
-    state.error = err instanceof Error ? err.message : 'Ошибка загрузки битов'
+    state.error = err instanceof Error ? err.message : 'Не удалось получить биты'
   }
 }
 
@@ -170,6 +212,7 @@ const cancelDraw = () => {
   state.result = null
   state.stages = []
   streamEvents.value = []
+  Object.assign(live, { draw: undefined, fingerprint: undefined, tests_summary: null })
 }
 
 const resetState = () => {
@@ -184,6 +227,7 @@ const resetState = () => {
     bits: null,
   })
   streamEvents.value = []
+  Object.assign(live, { draw: undefined, fingerprint: undefined, tests_summary: null })
 }
 
 const clearError = () => {
@@ -191,15 +235,8 @@ const clearError = () => {
 }
 
 const stopProgressTracking = () => {
-  if (eventSource) {
-    eventSource.close()
-    eventSource = null
-  }
-
-  if (pollInterval) {
-    window.clearInterval(pollInterval)
-    pollInterval = null
-  }
+  if (ws) { try { ws.close() } catch {} ws = null }
+  if (finalCheck) { window.clearInterval(finalCheck); finalCheck = null }
 }
 
 onUnmounted(() => {

@@ -14,5 +14,13 @@ export default defineConfig({
   },
   server: {
     allowedHosts: ['hackathon48.ru'],
+    proxy: {
+      // Proxy API requests to local backend
+      '/api': {
+        target: 'http://localhost:8000',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api/, ''),
+      },
+    },
   },
 })
