@@ -3,7 +3,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import type { RouteRecordRaw } from 'vue-router'
 
 // Импортируем компоненты страниц
-const DrawPage = () => import('@/pages/DrawPage.vue')
+const DrawPage = () => import('@/pages/DrawPageNew.vue')
 const VerifyPage = () => import('@/pages/VerifyPage.vue')
 const PassportPage = () => import('@/pages/PassportPage.vue')
 

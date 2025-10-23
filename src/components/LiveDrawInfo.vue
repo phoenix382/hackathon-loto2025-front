@@ -6,7 +6,7 @@
     <div v-if="numbers && numbers.length" class="numbers">
       <div class="hint">Комбинация сгенерирована и зафиксирована</div>
       <div class="grid">
-        <div v-for="(n,i) in numbers" :key="i" class="ball">{{ n }}</div>
+        <div v-for="(n,i) in numbers" :key="i" class="ball" :style="{ animationDelay: (i*80)+'ms' }">{{ n }}</div>
       </div>
     </div>
 
@@ -42,13 +42,14 @@ import { computed } from 'vue'
 </script>
 
 <style scoped>
-.live-info { margin-top: 1rem; padding: 1rem; border: 1px solid #eee; border-radius: 8px; background: #fff; }
+.live-info { margin-top: 1rem; padding: 1rem; border: 1px solid #eee; border-radius: 8px; background: #fff; animation: fade-in .25s ease both; }
 .hint { font-size: 0.85rem; color: #555; margin-bottom: 0.25rem; }
 .grid { display: flex; gap: 0.65rem; flex-wrap: wrap; margin-top: 0.25rem; }
-.ball { width: 46px; height: 46px; border-radius: 50%; background: #0d6efd; color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+.ball { width: 46px; height: 46px; border-radius: 50%; background: #0d6efd; color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; box-shadow: 0 2px 4px rgba(0,0,0,0.1); animation: pop-in .35s cubic-bezier(.2,.7,.2,1) both; }
 .fp { margin-top: 0.75rem; }
 .fp code { background: #f8f9fa; padding: 0.4rem 0.5rem; border-radius: 6px; display: inline-block; word-break: break-all; }
 .summary { margin-top: 0.75rem; }
 .row { display: flex; gap: 1rem; flex-wrap: wrap; color: #333; }
+@keyframes pop-in { from { transform: scale(.85); opacity: 0 } 60% { transform: scale(1.05); opacity: 1 } to { transform: scale(1) } }
+@keyframes fade-in { from { opacity: 0 } to { opacity: 1 } }
 </style>
-

@@ -27,7 +27,7 @@
         <div><strong>Статус:</strong> {{ statusRu(report.status) }}</div>
       </div>
       <div class="tests">
-        <div v-for="t in report.tests" :key="t.name" class="test">
+        <div v-for="(t,idx) in report.tests" :key="t.name" class="test" :style="{ animationDelay: (idx*40)+'ms' }">
           <div class="name">
             {{ t.name }}
             <span class="badge" :class="t.passed ? 'ok' : 'fail'">{{ t.passed ? 'PASS' : 'FAIL' }}</span>
@@ -205,14 +205,16 @@ onMounted(() => { if (props.jobId) start(props.jobId) })
 .progress-info { display: flex; justify-content: space-between; align-items: center; margin-top: 6px; color: #444; }
 .progress-info .label { font-weight: 600; }
 .progress-info .counts { font-variant-numeric: tabular-nums; color: #666; }
-.report { margin-top: 1rem; }
+.report { margin-top: 1rem; animation: fade-in .25s ease both; }
 .report-header { display: flex; gap: 1rem; margin-bottom: 0.5rem; color: #333; flex-wrap: wrap; }
 .tests { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.5rem; }
-.test { border: 1px solid #eee; border-radius: 8px; padding: 0.75rem; background: #fff; }
+.test { border: 1px solid #eee; border-radius: 8px; padding: 0.75rem; background: #fff; animation: fade-up .3s ease both; }
 .name { display: flex; justify-content: space-between; align-items: center; font-weight: 600; margin-bottom: 0.25rem; }
 .badge { padding: 0.1rem 0.5rem; border-radius: 999px; font-size: 0.75rem; }
 .badge.ok { background: #d1e7dd; color: #0f5132; }
 .badge.fail { background: #f8d7da; color: #842029; }
 .pv { color: #555; }
 .nist-empty { margin-top: 1rem; color: #555; }
+@keyframes fade-up { from { opacity: 0; transform: translateY(6px) } to { opacity: 1; transform: none } }
+@keyframes fade-in { from { opacity: 0 } to { opacity: 1 } }
 </style>

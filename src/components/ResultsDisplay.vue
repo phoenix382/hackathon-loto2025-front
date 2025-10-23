@@ -134,6 +134,7 @@ ${props.bits.bits}
   font-size: 1.5rem;
   font-weight: bold;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  animation: pop-in .35s cubic-bezier(.2,.7,.2,1) both;
 }
 
 .result-info {
@@ -167,10 +168,10 @@ ${props.bits.bits}
 .action-button {
   padding: 0.75rem 1.5rem;
   border: none;
-  border-radius: 4px;
+  border-radius: 6px;
   font-size: 1rem;
   cursor: pointer;
-  transition: background-color 0.2s;
+  transition: transform .18s ease, box-shadow .18s ease, background-color .18s ease, opacity .18s ease;
 }
 
 .action-button {
@@ -181,9 +182,8 @@ ${props.bits.bits}
   background-color: #6c757d;
   color: white;
 }
-.action-button:hover {
-  opacity: 0.9;
-}
+.action-button:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,.08); }
+.action-button:active { transform: translateY(0) scale(.98); }
 .action-button:disabled {
   background-color: #ccc;
   cursor: not-allowed;
@@ -194,6 +194,7 @@ ${props.bits.bits}
   margin-top: 2rem;
   padding-top: 2rem;
   border-top: 1px solid #ddd;
+  animation: fade-in .25s ease both;
 }
 
 .bits-info {
@@ -207,11 +208,14 @@ ${props.bits.bits}
   margin-top: 0.5rem;
   padding: 1rem;
   background-color: #e9ecef;
-  border-radius: 4px;
+  border-radius: 6px;
   font-family: monospace;
   word-break: break-all;
   font-size: 0.875rem;
   max-height: 200px;
   overflow-y: auto;
 }
+
+@keyframes pop-in { from { transform: scale(.85); opacity: 0 } 60% { transform: scale(1.05); opacity: 1 } to { transform: scale(1) } }
+@keyframes fade-in { from { opacity: 0 } to { opacity: 1 } }
 </style>
