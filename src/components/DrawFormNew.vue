@@ -52,7 +52,7 @@
           />
         </div>
         <div class="form-group">
-          <label for="max_number">Максимум (например, 49)</label>
+          <label for="max_number">Максимум</label>
           <input
             id="max_number"
             v-model.number="form.max_number"
