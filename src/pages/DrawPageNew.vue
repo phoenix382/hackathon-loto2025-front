@@ -271,7 +271,7 @@ const getTimelineItemClass = (stage: any) => {
     'entropy:collected': 'entropy',
     'whitening:von_neumann:done': 'whitening',
     'seed:done': 'seed',
-    'draw:done': 'draw',
+    'draw:done': 'other-draw',
     'tests:done': 'tests',
   }
   return stageMap[stage.stage] || ''
