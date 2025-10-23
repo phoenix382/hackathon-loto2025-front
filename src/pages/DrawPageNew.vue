@@ -1,4 +1,3 @@
-<!-- pages/DrawPageNew.vue (redesigned UX/UI) -->
 <template>
   <div class="draw">
     <section class="hero">
@@ -28,7 +27,7 @@
     </section>
 
     <section class="grid">
-      <div class="col">
+      <div class="col results-col">
         <div class="card">
           <div class="card-head"><h3>Настройка тиража</h3></div>
           <DrawFormNew @submit="startDraw" />
@@ -37,10 +36,8 @@
             <button class="alert-close" @click="clearError" aria-label="Закрыть">×</button>
           </div>
         </div>
-      </div>
-      <div class="col">
         <!-- Progress -->
-        <div v-if="state.jobId && !state.result" class="card sticky-card">
+        <div v-if="state.jobId && !state.result" class="card">
           <div class="card-head"><h3>Ход розыгрыша</h3></div>
           <ProgressDisplay
             :stages="state.stages"
@@ -57,8 +54,8 @@
           </div>
         </div>
 
-        <!-- Result -->
-        <div v-if="state.result" class="card sticky-card">
+        <!-- Основной результат -->
+        <div v-if="state.result" class="card main-result">
           <div class="card-head"><h3>Результат розыгрыша</h3></div>
 
           <div class="numbers">
@@ -104,6 +101,91 @@
               <button class="btn ghost" @click="saveBitsAsTxt" :disabled="!state.bits">
                 Скачать bits.txt
               </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Timeline -->
+        <div v-if="state.result && state.result.stages" class="card">
+          <div class="card-head"><h4>Таймлайн генерации</h4></div>
+          <div class="timeline">
+            <div
+              v-for="(stage, index) in filteredStages"
+              :key="index"
+              class="timeline-item"
+              :class="getTimelineItemClass(stage)"
+            >
+              <div class="timeline-dot"></div>
+              <div class="timeline-content">
+                <div class="timeline-title">{{ getStageTitle(stage.stage) }}</div>
+                <div class="timeline-time">{{ stage.time.toFixed(3) }}s</div>
+                <div v-if="stage.data" class="timeline-data">
+                  <template v-if="stage.stage === 'entropy:collected'">
+                    Собрано бит: {{ stage.data.bits }}
+                  </template>
+                  <template v-else-if="stage.stage === 'whitening:von_neumann:done'">
+                    После вайтинга: {{ stage.data.out_bits }} бит
+                  </template>
+                  <template v-else-if="stage.stage === 'seed:done'">
+                    Отпечаток: {{ stage.data.fingerprint.slice(0, 16) }}...
+                  </template>
+                  <template v-else-if="stage.stage === 'draw:done'">
+                    Комбинация: {{ stage.data.combo.join(', ') }}
+                  </template>
+                  <template v-else-if="stage.stage === 'tests:done'">
+                    Тестов пройдено: {{ stage.data.summary.passed }}/{{
+                      stage.data.summary.eligible
+                    }}
+                  </template>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Test Results -->
+        <div v-if="state.result && state.result.tests?.nist" class="card">
+          <div class="card-head"><h4>Результаты тестов NIST SP 800-22</h4></div>
+          <div class="tests-summary">
+            <div class="test-stat">
+              <span class="stat-value">{{ state.result.tests.nist.summary.passed }}</span>
+              <span class="stat-label">пройдено</span>
+            </div>
+            <div class="test-stat">
+              <span class="stat-value">{{
+                state.result.tests.nist.summary.eligible - state.result.tests.nist.summary.passed
+              }}</span>
+              <span class="stat-label">не пройдено</span>
+            </div>
+            <div class="test-stat">
+              <span class="stat-value"
+                >{{ Math.round(state.result.tests.nist.summary.ratio * 100) }}%</span
+              >
+              <span class="stat-label">успех</span>
+            </div>
+          </div>
+          <div class="tests-list">
+            <div
+              v-for="test in state.result.tests.nist.tests"
+              :key="test.name"
+              class="test-item"
+              :class="{ passed: test.passed, failed: !test.passed }"
+            >
+              <div class="test-status">
+                <span
+                  class="status-dot"
+                  :class="{ passed: test.passed, failed: !test.passed }"
+                ></span>
+              </div>
+              <div class="test-info">
+                <div class="test-name">{{ getTestName(test.name) }}</div>
+                <div class="test-pvalue">p-value: {{ test.p_value.toExponential(3) }}</div>
+              </div>
+              <div class="test-result">
+                <span class="result-badge" :class="{ passed: test.passed, failed: !test.passed }">
+                  {{ test.passed ? 'Пройден' : 'Не пройден' }}
+                </span>
+              </div>
             </div>
           </div>
         </div>
@@ -153,6 +235,19 @@ const stepIndex = computed(() => {
   return 1
 })
 
+const filteredStages = computed(() => {
+  if (!state.result?.stages) return []
+  const importantStages = [
+    'entropy:start',
+    'entropy:collected',
+    'whitening:von_neumann:done',
+    'seed:done',
+    'draw:done',
+    'tests:done',
+  ]
+  return state.result.stages.filter((stage) => importantStages.includes(stage.stage))
+})
+
 const bitsMultiline = computed(() => {
   const s = state.bits?.bits || ''
   if (!s) return ''
@@ -169,6 +264,46 @@ const bitsMultiline = computed(() => {
   }
   return lines.join('\n')
 })
+
+const getTimelineItemClass = (stage: any) => {
+  const stageMap: Record<string, string> = {
+    'entropy:start': 'entropy',
+    'entropy:collected': 'entropy',
+    'whitening:von_neumann:done': 'whitening',
+    'seed:done': 'seed',
+    'draw:done': 'draw',
+    'tests:done': 'tests',
+  }
+  return stageMap[stage.stage] || ''
+}
+
+const getStageTitle = (stage: string) => {
+  const titles: Record<string, string> = {
+    'entropy:start': 'Сбор энтропии',
+    'entropy:collected': 'Энтропия собрана',
+    'whitening:von_neumann:done': 'Вайтинг завершен',
+    'seed:done': 'Seed создан',
+    'draw:done': 'Числа сгенерированы',
+    'tests:done': 'Тесты завершены',
+  }
+  return titles[stage] || stage
+}
+
+const getTestName = (testName: string) => {
+  const names: Record<string, string> = {
+    monobit: 'Монобитный тест',
+    frequency_within_block: 'Частота в блоке',
+    runs: 'Тест серий',
+    longest_run_ones_in_a_block: 'Самый длинный прогон',
+    dft: 'Дискретное преобразование Фурье',
+    non_overlapping_template_matching: 'Неперекрывающиеся шаблоны',
+    serial: 'Последовательный тест',
+    approximate_entropy: 'Приблизительная энтропия',
+    cumulative_sums: 'Кумулятивные суммы',
+    random_excursion: 'Случайные экскурсии',
+  }
+  return names[testName] || testName
+}
 
 const startDraw = async (config: DrawConfig) => {
   try {
@@ -338,7 +473,7 @@ onUnmounted(() => {
 
 <style scoped>
 .draw {
-  max-width: 1100px;
+  max-width: 1200px;
   margin: 0 auto;
   padding: 24px;
 }
@@ -349,9 +484,13 @@ onUnmounted(() => {
 .hero h1 {
   color: #111827;
   margin-bottom: 6px;
+  font-size: 2rem;
 }
 .hero p {
   color: #4b5563;
+  font-size: 1.1rem;
+  max-width: 600px;
+  margin: 0 auto;
 }
 .badges {
   display: flex;
@@ -411,46 +550,58 @@ onUnmounted(() => {
 .grid {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 16px;
-  transition: grid-template-columns 0.3s ease;
-}
-/* When result is not visible - form takes full width */
-.grid:has(.col:only-child) {
-  grid-template-columns: 1fr;
-}
-/* When result is visible - two columns */
-.grid:has(.col:nth-child(2)) {
-  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.col {
+/* Изначально - форма по центру */
+.grid:has(.col:only-child) {
+  grid-template-columns: minmax(0, 600px);
+  justify-content: center;
+}
+
+/* Когда появляется результат - две колонки */
+.grid:has(.col:nth-child(2)) {
+  grid-template-columns: 400px 1fr;
+  align-items: start;
+}
+
+.config-col {
+  position: sticky;
+  top: 24px;
+  height: fit-content;
+}
+
+.results-col {
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  transition: transform 0.3s ease;
-}
-/* When result appears, slide the form column to the left */
-.grid:has(.col:nth-child(2)) .col:first-child {
-  transform: translateX(-10px);
+  gap: 20px;
 }
 
 .card {
   background: #fff;
   border: 1px solid #e5e7eb;
   border-radius: 12px;
-  padding: 16px;
+  padding: 20px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
 }
-.sticky-card {
-  position: sticky;
-  top: 16px;
+
+.main-result {
+  order: -1; /* Основной результат всегда сверху в правой колонке */
 }
+
 .card-head {
-  margin-bottom: 8px;
+  margin-bottom: 12px;
 }
 .card-head h3 {
   margin: 0;
   color: #111827;
+  font-size: 1.25rem;
+}
+.card-head h4 {
+  margin: 0;
+  color: #111827;
+  font-size: 1.1rem;
 }
 
 .alert {
@@ -477,7 +628,7 @@ onUnmounted(() => {
   display: flex;
   gap: 8px;
   justify-content: flex-end;
-  margin-top: 8px;
+  margin-top: 12px;
 }
 .btn {
   padding: 10px 14px;
@@ -486,6 +637,8 @@ onUnmounted(() => {
   background: #0d6efd;
   color: #fff;
   cursor: pointer;
+  font-size: 0.9rem;
+  transition: all 0.2s ease;
 }
 .btn.ghost {
   background: #fff;
@@ -497,6 +650,7 @@ onUnmounted(() => {
 }
 .btn:hover {
   filter: brightness(0.95);
+  transform: translateY(-1px);
 }
 
 .numbers {
@@ -504,7 +658,7 @@ onUnmounted(() => {
   gap: 10px;
   flex-wrap: wrap;
   justify-content: flex-start;
-  margin: 10px 0 4px;
+  margin: 16px 0 8px;
 }
 .ball {
   width: 56px;
@@ -521,20 +675,22 @@ onUnmounted(() => {
 }
 
 .info {
-  margin: 8px 0 6px;
+  margin: 12px 0 8px;
   background: #f9fafb;
   border: 1px solid #e5e7eb;
   border-radius: 8px;
-  padding: 10px;
+  padding: 12px;
 }
 .row {
   display: flex;
   gap: 8px;
-  padding: 4px 0;
+  padding: 6px 0;
 }
 .k {
   width: 120px;
   color: #6b7280;
+  font-weight: 500;
+  flex-shrink: 0;
 }
 .v {
   color: #111827;
@@ -547,14 +703,14 @@ onUnmounted(() => {
 }
 
 .bits {
-  margin-top: 10px;
+  margin-top: 12px;
 }
 .bits-box {
   white-space: pre-wrap;
   background: #f3f4f6;
   border: 1px solid #e5e7eb;
   border-radius: 8px;
-  padding: 10px;
+  padding: 12px;
   max-height: 230px;
   overflow: auto;
   font-family:
@@ -565,6 +721,190 @@ onUnmounted(() => {
 
 .fade-in {
   animation: fade-in 0.25s ease both;
+}
+
+/* Timeline Styles */
+.timeline {
+  position: relative;
+  padding-left: 20px;
+}
+
+.timeline::before {
+  content: '';
+  position: absolute;
+  left: 7px;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: #dee2e6;
+}
+
+.timeline-item {
+  position: relative;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: flex-start;
+}
+
+.timeline-dot {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #6c757d;
+  position: absolute;
+  left: -23px;
+  top: 2px;
+  z-index: 1;
+}
+
+.timeline-item.entropy .timeline-dot {
+  background: #0d6efd;
+}
+.timeline-item.whitening .timeline-dot {
+  background: #6f42c1;
+}
+.timeline-item.seed .timeline-dot {
+  background: #d63384;
+}
+.timeline-item.draw .timeline-dot {
+  background: #fd7e14;
+}
+.timeline-item.tests .timeline-dot {
+  background: #198754;
+}
+
+.timeline-content {
+  flex: 1;
+  padding-left: 8px;
+}
+
+.timeline-title {
+  font-weight: 600;
+  color: #212529;
+  margin-bottom: 4px;
+}
+
+.timeline-time {
+  font-size: 0.875rem;
+  color: #6c757d;
+  margin-bottom: 4px;
+}
+
+.timeline-data {
+  font-size: 0.875rem;
+  color: #495057;
+  background: #fff;
+  padding: 6px 8px;
+  border-radius: 4px;
+  border: 1px solid #e9ecef;
+}
+
+/* Test Results Styles */
+.tests-summary {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.test-stat {
+  text-align: center;
+  padding: 12px;
+  background: #fff;
+  border-radius: 8px;
+  border: 1px solid #e9ecef;
+}
+
+.stat-value {
+  display: block;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #212529;
+}
+
+.stat-label {
+  font-size: 0.875rem;
+  color: #6c757d;
+}
+
+.tests-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.test-item {
+  display: flex;
+  align-items: center;
+  padding: 12px;
+  background: #fff;
+  border-radius: 8px;
+  border: 1px solid #e9ecef;
+  transition: all 0.2s ease;
+}
+
+.test-item.passed {
+  border-left: 4px solid #198754;
+}
+
+.test-item.failed {
+  border-left: 4px solid #dc3545;
+}
+
+.test-status {
+  margin-right: 12px;
+}
+
+.status-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  display: block;
+}
+
+.status-dot.passed {
+  background: #198754;
+}
+
+.status-dot.failed {
+  background: #dc3545;
+}
+
+.test-info {
+  flex: 1;
+}
+
+.test-name {
+  font-weight: 600;
+  color: #212529;
+  margin-bottom: 2px;
+}
+
+.test-pvalue {
+  font-size: 0.875rem;
+  color: #6c757d;
+}
+
+.test-result {
+  margin-left: auto;
+}
+
+.result-badge {
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.result-badge.passed {
+  background: #d1e7dd;
+  color: #0f5132;
+}
+
+.result-badge.failed {
+  background: #f8d7da;
+  color: #842029;
 }
 
 @keyframes pop-in {
@@ -593,9 +933,42 @@ onUnmounted(() => {
 @media (max-width: 959px) {
   .grid {
     grid-template-columns: 1fr !important;
+    gap: 16px;
   }
-  .grid:has(.col:nth-child(2)) .col:first-child {
-    transform: none;
+
+  .config-col {
+    position: static;
+  }
+
+  .results-col {
+    gap: 16px;
+  }
+
+  .tests-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .test-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .test-result {
+    margin-left: 0;
+    align-self: flex-end;
+  }
+
+  .hero h1 {
+    font-size: 1.5rem;
+  }
+
+  .hero p {
+    font-size: 1rem;
+  }
+
+  .card {
+    padding: 16px;
   }
 }
 </style>
