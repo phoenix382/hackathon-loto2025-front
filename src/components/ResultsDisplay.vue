@@ -46,6 +46,7 @@
 
 <script setup lang="ts">
 import type { DrawResult, BitsResult } from '@/types/draw'
+import { defineProps, defineEmits } from 'vue'
 
 interface Props {
   result: DrawResult | null
