@@ -17,7 +17,7 @@ export default defineConfig({
     proxy: {
       // Proxy API requests to local backend
       '/api': {
-        target: 'http://hackathon48:8000',
+        target: 'http://hackathon48.ru:8000',
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api/, ''),
       },
